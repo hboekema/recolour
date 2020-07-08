@@ -1,0 +1,6 @@
+data/
+models/
+experiments/
+venv/
+*.DS_Store
+*.pyc
