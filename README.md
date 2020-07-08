@@ -10,7 +10,7 @@ Project for recolouring grayscale images
 ## Set-up
 
 ### Unix Setup with virtualenv
- '''bash
+ '''shell
  virtualenv venv
  source venv/bin/activate
  pip install -U pip
@@ -21,8 +21,9 @@ Project for recolouring grayscale images
 
  or
 
- '''bash
+ '''shell
  source setup_venv.sh
  '''
 
-
+## License
+[MIT](https://choosealicense.com/licenses/mit/)
