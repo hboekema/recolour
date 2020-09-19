@@ -1,6 +1,6 @@
 # Recolour
 
-Project for recolouring grayscale images
+Project for recolouring grayscale images.
 
 ## Requirements
 
@@ -9,7 +9,7 @@ Project for recolouring grayscale images
 
 ## Set-up
 
-### Unix Setup with virtualenv
+### Unix setup with virtualenv
  ```bash
  virtualenv venv
  source venv/bin/activate
@@ -19,7 +19,7 @@ Project for recolouring grayscale images
  pip install -r requirements.txt
  ```
 
- or
+ or (may require permission)
 
  ```shell
  ./setup_venv.sh

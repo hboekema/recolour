@@ -1,0 +1,43 @@
+
+
+GENERAL:
+    GPU_ID: "-1"
+
+
+DATA:
+    TRAIN_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/train/"
+    VAL_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/val/images/"
+    TEST_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/test/images/"
+
+
+MODEL:
+    #ARCHITECTURE: "UNetFCNN"
+    ARCHITECTURE: "SmallUNetFCNN"
+    
+    #IMG_DIM: [256, 256]
+    IMG_DIM: [64, 64]
+
+
+TRAIN:
+    EPOCHS: 100
+    STEPS_PER_EPOCH: 50
+    BATCH_SIZE: 32
+    #BATCH_SIZE: 2
+    LEARNING_RATE: 0.001
+    PREDICTION_PERIOD: 5
+    MODEL_SAVE_PERIOD: 25
+    SHUFFLE: True
+    #TRAIN_SAMPLES: 2
+    TRAIN_SAMPLES: 0
+
+
+VAL:
+    VALIDATION_SAMPLES: 16
+
+TEST:
+
+
+
+VIS:
+    VIS_SAMPLES: 3 
+
