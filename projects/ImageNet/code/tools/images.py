@@ -81,7 +81,7 @@ def load_images(dir_path):
 
 if __name__ == "__main__":
     # Show raw and preprocessed images
-    image_dir = "/Users/hboekema/Desktop/recolour/data/landscapes_small/mountain/"
+    image_dir = "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/train/"
 
     images = load_images(image_dir)
     print("num images: " + str(len(images)))

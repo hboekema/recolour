@@ -1,13 +1,13 @@
 
 
 GENERAL:
-    GPU_ID: "-1"
+    GPU_ID: "0"
 
 
 DATA:
-    TRAIN_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/train/"
-    VAL_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/val/images/"
-    TEST_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/test/images/"
+    TRAIN_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/train/"
+    VAL_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/val/images/"
+    TEST_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/test/images/"
 
 
 MODEL:

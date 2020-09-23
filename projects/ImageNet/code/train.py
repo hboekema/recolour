@@ -40,6 +40,9 @@ import tensorflow.keras as keras
 print("Keras version: " + str(keras.__version__))
 print("TF version: " + str(tf.__version__))
 
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+sess = tf.Session(config=config)
 
 if __name__ == "__main__":
     # Select GPU/CPU training

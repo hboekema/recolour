@@ -7,3 +7,4 @@ opencv-python
 tensorflow==1.14.0
 keras>=2.2.5
 scikit-learn
+scikit-image

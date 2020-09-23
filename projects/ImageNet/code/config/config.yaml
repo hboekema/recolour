@@ -1,31 +1,32 @@
 
 
 GENERAL:
-    GPU_ID: "-1"
+    #GPU_ID: "-1"
+    GPU_ID: "0"
 
 
 DATA:
-    TRAIN_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/train/"
-    VAL_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/val/images/"
-    TEST_DATA_PATH: "/Users/hboekema/Desktop/recolour/data/tiny-imagenet-200/test/images/"
+    TRAIN_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/train/"
+    VAL_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/val/images/"
+    TEST_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/test/images/"
 
 
 MODEL:
-    #ARCHITECTURE: "UNetFCNN"
-    ARCHITECTURE: "SmallUNetFCNN"
+    ARCHITECTURE: "UNetFCNN"
+    #ARCHITECTURE: "SmallUNetFCNN"
     
     #IMG_DIM: [256, 256]
     IMG_DIM: [64, 64]
 
 
 TRAIN:
-    EPOCHS: 100
+    EPOCHS: 10000
     STEPS_PER_EPOCH: 50
     BATCH_SIZE: 32
     #BATCH_SIZE: 2
     LEARNING_RATE: 0.001
     PREDICTION_PERIOD: 5
-    MODEL_SAVE_PERIOD: 25
+    MODEL_SAVE_PERIOD: 50
     SHUFFLE: True
     #TRAIN_SAMPLES: 2
     TRAIN_SAMPLES: 0

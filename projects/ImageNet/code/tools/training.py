@@ -41,7 +41,7 @@ def setup_callbacks(EXP_DIR, DATA, PREDICTION_PERIOD, MODEL_SAVE_PERIOD, VAL_DAT
 
     """
     logging_cb = LoggingCallback(EXP_DIR, DATA, period=PREDICTION_PERIOD, mode="train", show=False)
-    model_save_cb = ModelCheckpoint(EXP_DIR + "model.{epoch:02d}-{loss:.4f}.hdf5",
+    model_save_cb = ModelCheckpoint(os.path.join(EXP_DIR, "models",  "model.{epoch:02d}-{loss:.4f}.hdf5"),
         monitor='loss', verbose=1, save_best_only=False, mode='auto',
         period=MODEL_SAVE_PERIOD, save_weights_only=True)
 
