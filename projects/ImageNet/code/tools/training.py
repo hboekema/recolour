@@ -2,7 +2,10 @@
 """ File with helper functions for training the model """
 
 
-from tensorflow.keras.optimizers import Adam
+import os
+
+import tensorflow as tf
+from tensorflow.keras.optimizers import Adam, RMSprop
 from tensorflow.keras.models import Model
 from tensorflow.keras.callbacks import ModelCheckpoint
 
@@ -11,6 +14,9 @@ from tools.experiment_setup import setup_exp_directory
 from tools.data_generator import ImageGenerator
 from tools.callbacks import LoggingCallback
 from tools.data import load_images, gather_images_in_dir
+from tools.gan import GANModel
+
+from architectures.losses import generator_loss, discriminator_loss, wasserstein_generator_loss, wasserstein_discriminator_loss
 
 
 def setup_data_generator(DATA_PATH, BATCH_SIZE, IMG_DIM, SHUFFLE):
@@ -45,7 +51,9 @@ def setup_callbacks(EXP_DIR, DATA, PREDICTION_PERIOD, MODEL_SAVE_PERIOD, VAL_DAT
         monitor='loss', verbose=1, save_best_only=False, mode='auto',
         period=MODEL_SAVE_PERIOD, save_weights_only=True)
 
-    callbacks = [logging_cb, model_save_cb]
+    # TODO: add model_save_cb back in when done debugging
+    #callbacks = [logging_cb, model_save_cb]
+    callbacks = [logging_cb]
 
     if VAL_DATA is not None:
         val_logging_cb = LoggingCallback(EXP_DIR, VAL_DATA, period=PREDICTION_PERIOD, mode="val", show=False)
@@ -63,7 +71,7 @@ def setup_train_model(ARCHITECTURE, PARAMS, LEARNING_RATE=0.001):
         Architecture name
     PARAMS: dict
         Parameters required by chosen architecture
-    LR : float
+    LEARNING_RATE : float
         Optimizer learning rate
 
     Returns
@@ -78,6 +86,9 @@ def setup_train_model(ARCHITECTURE, PARAMS, LEARNING_RATE=0.001):
     # Setup optimizer
     optimizer = Adam(lr=LEARNING_RATE)
 
+    # Allow automatic mixed-precision training
+    optimizer = tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(optimizer)
+    
     # Define losses and weights
     loss, loss_weights = get_architecture_loss(ARCHITECTURE)
 
@@ -93,6 +104,62 @@ def setup_train_model(ARCHITECTURE, PARAMS, LEARNING_RATE=0.001):
     model.summary()
 
     return model
+
+def setup_GAN_submodel(ARCHITECTURE, PARAMS, LEARNING_RATE, submodel_name):
+    """Retrieve architecture, setup optimizer, and get losses for the generator or discriminator Model
+
+    Parameters
+    ----------
+    ARCHITECTURE : str
+        Architecture name
+    PARAMS: dict
+        Parameters required by chosen architecture
+    LEARNING_RATE : float
+        Optimizer learning rate
+    submodel_name : str
+        Name of the submodel (generator or discriminator) to create
+
+    Returns
+    -------
+    tf.keras.models.Model
+        Keras model
+    """
+
+    # Retrieve architecture input and outputs
+    model_inputs, model_outputs = get_architecture_inputs_outputs(ARCHITECTURE, PARAMS)
+
+    # Setup optimizer - use RMSprop because momentum can mess with GAN convergence (see arXiv:1701.07875)
+    optimizer = RMSprop(lr=LEARNING_RATE, momentum=0.0)
+    
+    # Allow automatic mixed-precision training
+    optimizer = tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(optimizer)
+
+    # Get loss
+    if submodel_name == "generator":
+        #loss_fn = generator_loss
+        loss_fn = wasserstein_generator_loss
+    elif submodel_name == "discriminator":
+        #loss_fn = discriminator_loss
+        loss_fn = wasserstein_discriminator_loss
+    else:
+        raise ValueError("'submodel_name' should be one of 'generator' or 'discriminator'. Value given: '{}'".format(submodel_name))
+
+    # Create and return  model
+    model = Model(inputs=model_inputs, outputs=model_outputs)
+    return model, optimizer, loss_fn
+
+
+
+def setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS, DISC_PARAMS, GEN_LEARNING_RATE=0.001, DISC_LEARNING_RATE=0.001, GEN_RUNS_PER_EPOCH=1, DISC_RUNS_PER_EPOCH=5):
+    # Create the generator and discriminator
+    generator, gen_optimizer, gen_loss = setup_GAN_submodel(GEN_ARCHITECTURE, GEN_PARAMS, GEN_LEARNING_RATE, "generator")
+    discriminator, disc_optimizer, disc_loss = setup_GAN_submodel(DISC_ARCHITECTURE, DISC_PARAMS, DISC_LEARNING_RATE, "discriminator")  
+    
+    # Create the GAN
+    gan = GANModel(generator, discriminator, gen_loss, disc_loss, gen_optimizer, disc_optimizer, GEN_RUNS_PER_EPOCH, DISC_RUNS_PER_EPOCH)
+    return gan
+
+
 
 
 def train_model_with_data_generator(model, data_generator, PARAMS, validation_data=None, callbacks=None):
@@ -129,17 +196,31 @@ def train_model_with_data_generator(model, data_generator, PARAMS, validation_da
 
 def training_procedure(SETUP_PARAMS, RUN_ID):
     """ Train a network with the given parameters """
+    # Get training mode
+    MODE = SETUP_PARAMS["GENERAL"]["MODE"]
+    print("Training mode: {}".format(MODE))
+
     # Data parameters
     TRAIN_DATA_PATH = SETUP_PARAMS["DATA"]["TRAIN_DATA_PATH"]
     VAL_DATA_PATH = SETUP_PARAMS["DATA"]["VAL_DATA_PATH"]
 
-    # Model parameters
-    ARCHITECTURE = SETUP_PARAMS["MODEL"]["ARCHITECTURE"]
+    # Model parameters & training parameters
     IMG_DIM = SETUP_PARAMS["MODEL"]["IMG_DIM"]
-
-    # Training parameters
+    if MODE == "GAN":
+        GEN_ARCHITECTURE = SETUP_PARAMS["GENERATOR"]["ARCHITECTURE"]
+        GEN_PARAMS = SETUP_PARAMS["GEN_PARAMS"]
+        GEN_LEARNING_RATE = SETUP_PARAMS["GENERATOR"]["GEN_LEARNING_RATE"]
+        GEN_RUNS_PER_EPOCH = SETUP_PARAMS["GENERATOR"]["RUNS_PER_EPOCH"]
+        DISC_ARCHITECTURE = SETUP_PARAMS["DISCRIMINATOR"]["ARCHITECTURE"]
+        DISC_PARAMS = SETUP_PARAMS["DISC_PARAMS"]
+        DISC_LEARNING_RATE = SETUP_PARAMS["DISCRIMINATOR"]["DISC_LEARNING_RATE"]
+        DISC_RUNS_PER_EPOCH = SETUP_PARAMS["DISCRIMINATOR"]["RUNS_PER_EPOCH"]
+    else:
+        ARCHITECTURE = SETUP_PARAMS["MODEL"]["ARCHITECTURE"]
+        PARAMS = SETUP_PARAMS["PARAMS"]
+        LEARNING_RATE = SETUP_PARAMS["TRAIN"]["LEARNING_RATE"]
+    
     BATCH_SIZE = SETUP_PARAMS["TRAIN"]["BATCH_SIZE"]
-    LEARNING_RATE = SETUP_PARAMS["TRAIN"]["LEARNING_RATE"]
     EPOCHS = SETUP_PARAMS["TRAIN"]["EPOCHS"]
     STEPS_PER_EPOCH = SETUP_PARAMS["TRAIN"]["STEPS_PER_EPOCH"]
     MODEL_SAVE_PERIOD = SETUP_PARAMS["TRAIN"]["MODEL_SAVE_PERIOD"]
@@ -178,8 +259,13 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
     # Set the callbacks up
     callbacks = setup_callbacks(exp_dir, train_data_for_vis, PREDICTION_PERIOD, MODEL_SAVE_PERIOD, VAL_DATA=val_data_for_vis)
 
-    # Create the model
-    model = setup_train_model(ARCHITECTURE, {"img_dim": IMG_DIM}, LEARNING_RATE)
+
+    if MODE == "GAN":
+        # Create the model
+        model = setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS, DISC_PARAMS, GEN_LEARNING_RATE, DISC_LEARNING_RATE, GEN_RUNS_PER_EPOCH, DISC_RUNS_PER_EPOCH)
+    else:
+        # Create the model
+        model = setup_train_model(ARCHITECTURE, PARAMS, LEARNING_RATE)
 
     # Train model
     history = train_model_with_data_generator(model, data_gen, {"epochs": EPOCHS, "steps_per_epoch": STEPS_PER_EPOCH, "batch_size": BATCH_SIZE}, validation_data=val_data, callbacks=callbacks)

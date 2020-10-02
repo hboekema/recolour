@@ -32,10 +32,13 @@ class ImageGenerator(Sequence):
         # Load and return this batch of images
         img_x_batch, img_y_batch = load_images(img_paths_batch, img_dim=self.img_dim)
         return img_x_batch, img_y_batch
+    
+    def shuffle_data(self):
+        np.random.shuffle(self.img_paths)
 
     def on_epoch_end(self):
         if self.shuffle:
-            np.random.shuffle(self.img_paths)
+            self.shuffle_data()
 
 
 if __name__ == "__main__":

@@ -59,48 +59,77 @@ class LoggingCallback(Callback):
 
         return preds
 
-    def _store_preds(self, preds, epoch):
-        """ Save the input, prediction, and GT images """
-        for i in range(len(preds)):
-            # Expand the Y input channels to include the U and V components (both at 0.0)
-            input_y = self.data['x'][i]
-            input_yuv = np.zeros(shape=(*input_y.shape[:2], 3), dtype=float)
-            input_yuv[:, :, 0] = np.squeeze(input_y)
+    def _add_UV_channels_to_image(self, image_index):
+        # Expand the Y input channels to include the U and V components (both at 0.0)
+        input_y = self.data['x'][image_index]
+        input_yuv = np.zeros(shape=(*input_y.shape[:2], 3), dtype=float)
+        input_yuv[:, :, 0] = np.squeeze(input_y)
 
+        return input_y, input_yuv
+
+    def _compute_RMS_error_image(self, preds, image_index):
             # Calculate the RMSE difference image over the U and V channels
-            pred = preds[i]
-            gt = self.data['y'][i]
+            pred = preds[image_index]
+            assert(np.all(np.abs(pred[:, :, 1:]) <= 0.5))
+            
+            gt = self.data['y'][image_index]
             rmse_channel = 2*np.sqrt(np.mean(np.square(gt[:, :, 1:] - pred[:, :, 1:]), axis=-1))
-            rmse_img = np.zeros(shape=(*input_y.shape[:2], 3), dtype=float)
+            rmse_img = np.zeros(shape=(*gt.shape[:2], 3), dtype=float)
             rmse_img[:, :, 0] = np.clip(rmse_channel, 0.0, 1.0)
 
-            assert(np.all(np.abs(pred[:, :, 1:]) <= 0.5))
+            return rmse_img, pred, gt
 
-            # Concatenate the YUV input, output, GT, and RMSE difference images
-            images_to_store = [input_yuv, pred, gt, rmse_img]
-            comparison = np.concatenate(images_to_store, axis=1)
+    def _store_preds(self, preds, epoch):
+        """ Save the input, prediction, and GT images """
+        images_to_write = []
+        for image_index in range(len(preds)):
+            # Add UV channels back to Y-channel input image
+            _, input_yuv = self._add_UV_channels_to_image(image_index)
+            
+            # Compute difference image for visual error comparison
+            rmse_img, pred, gt = self._compute_RMS_error_image(preds, image_index)
 
-            # Convert the resulting 'comparison' image to RGB
-            comparison_rgb = postprocess_img(comparison, img_dim=(len(images_to_store)*self.display_dim[0], self.display_dim[1]))
+            # Postprocess the YUV input, output, GT, and RMSE difference images
+            input_rgb = postprocess_img(input_yuv, img_dim=self.display_dim, convert_to_rgb=True)
+            pred_rgb = postprocess_img(pred, img_dim=self.display_dim, convert_to_rgb=True) 
+            gt_reshaped = postprocess_img(gt, img_dim=self.display_dim, convert_to_rgb=True) 
+            rmse_img_reshaped = postprocess_img(rmse_img, img_dim=self.display_dim, convert_to_rgb=True) 
+            
+            # Concatenate into a 'comparison' image
+            images_to_store = [input_rgb, pred_rgb, gt_reshaped, rmse_img_reshaped]
+            comparison_img = np.concatenate(images_to_store, axis=1)
+            images_to_write.append(comparison_img)
 
-            # Write the RGB 'comparison' image to file
-            comparison_id = "epoch_{:05d}.comparison_{:02d}.png".format(epoch + 1, i + 1)
-            cv2.imwrite(os.path.join(self.vis_dir, comparison_id), comparison_rgb)
+        # Write the RGB 'comparison' images to file as a single, composite image
+        composite_img = np.concatenate(images_to_write, axis=0)
+        composite_id = "epoch_{:05d}.comparison.png".format(epoch + 1, image_index + 1)
+        cv2.imwrite(os.path.join(self.vis_dir, composite_id), cv2.cvtColor(composite_img, cv2.COLOR_RGB2BGR))
+
+    def _predict_and_store(self, epoch):
+        # Predict on callback data
+        preds = self.predict()
+
+        # Store the predictions
+        self._store_preds(preds, epoch)
+
+    def _write_logs_to_file(self, epoch, logs):
+        # Store losses in log file
+        with open(self.log_path, "a") as f:
+            # TODO: test and debug -- see if losses are output correctly
+            f.write(json.dumps({'epoch': epoch})[:-1] + ", " + json.dumps(logs) + '\n')
+
+    def on_epoch_begin(self, epoch, logs=None):
+        epoch = int(epoch) 
+        if epoch == 1:
+            self._predict_and_store(epoch=0)
 
     def on_epoch_end(self, epoch, logs=None):
         """ Store the model loss and accuracy at the end of every epoch, and store a model prediction on the callback data """
         epoch = int(epoch)
 
         if logs is not None and self.mode == "train":
-            # Store losses in log file
-            with open(self.log_path, "a") as f:
-                # TODO: test and debug -- see if losses are output correctly
-                f.write(json.dumps({'epoch': epoch})[:-1] + ", " + json.dumps(logs) + '\n')
+            self._write_logs_to_file(epoch, logs)
 
-        if (epoch + 1) % self.period == 0 or epoch == 0:
-            # Predict on callback data
-            preds = self.predict()
-
-            # Store the predictions
-            self._store_preds(preds, epoch)
-
+        if epoch % self.period == 0:
+            self._predict_and_store(epoch)
+            

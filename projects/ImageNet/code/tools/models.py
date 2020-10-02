@@ -7,7 +7,10 @@ from tensorflow.keras.losses import MeanSquaredError
 from architectures.generator.UNetFCNN import UNetFCNN
 from architectures.generator.SmallUNetFCNN import SmallUNetFCNN
 from architectures.generator.FCNN import FCNN
+from architectures.generator.WGAN_FCNN import WGAN_FCNN
 from architectures.generator.MLP import MLP
+
+from architectures.discriminator.SimpleDCNN import SimpleDCNN
 
 
 def get_architecture_inputs_outputs(ARCHITECTURE, PARAMS):
@@ -37,8 +40,12 @@ def get_architecture_inputs_outputs(ARCHITECTURE, PARAMS):
         return SmallUNetFCNN(**PARAMS)
     elif ARCHITECTURE == "FCNN":
         return FCNN(**PARAMS)
+    elif ARCHITECTURE == "WGAN_FCNN":
+        return WGAN_FCNN(**PARAMS)
     elif ARCHITECTURE == "MLP":
         return MLP(**PARAMS)
+    elif ARCHITECTURE == "SimpleDCNN":
+        return SimpleDCNN(**PARAMS)
     else:
         raise ValueError("Architecture '{}' not implemented.".format(ARCHITECTURE))
 

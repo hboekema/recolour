@@ -9,6 +9,10 @@ from skimage import color
 
 
 
+def reshape_image(img, img_dim):
+    return np.array(cv2.resize(img, img_dim, interpolation=cv2.INTER_CUBIC))
+
+
 def preprocess_img(img, img_dim=None):
     """Pre-process an image for deep network.
 
@@ -26,7 +30,7 @@ def preprocess_img(img, img_dim=None):
 
     # Rescale image to desired dimensions, if the dimensions are not already correct
     if img_dim is not None and img.shape != img_dim:
-        img = np.array(cv2.resize(img, img_dim, interpolation=cv2.INTER_CUBIC))
+        img = reshape_image(img, img_dim)
 
     # Normalise the image to lie in the correct YUV ranges
     img_scaled = img / 255.
@@ -43,29 +47,34 @@ def preprocess_img(img, img_dim=None):
     return img_grayscale, img_yuv
 
 
-def postprocess_img(img, img_dim=None):
+def postprocess_img(img, img_dim=None, convert_to_rgb=True):
     """Post-process an image for visualisation and general use.
 
     Parameters
     ----------
     img : NumPy array
-        YUV image of dimensions (n,m,3).
+        Image of dimensions (n,m,3).
+    img_dim : tuple
+        Dimensions (w,h) to cast image to
+    convert : bool
+        Flag for performing YUV to RGB conversion
 
     Returns
     -------
     NumPy array
-        RGB image corresponding to input YUV image
+        Image of dimensions (w,h,3)
     """
-
-    # Convert from YUV to RGB colour space
-    img_rgb = np.clip(color.yuv2rgb(img), 0.0, 1.0)
+    
+    if convert_to_rgb:
+        # Convert from YUV to RGB colour space
+        img = np.clip(color.yuv2rgb(img), 0.0, 1.0)
 
     # Scale image to convert RGB from continous to digital format
-    img_scaled = np.round(img_rgb * 255).astype("uint8")
+    img_scaled = np.round(img * 255).astype("uint8")
 
     # Resize image if a different output resolution is desired
     if img_dim is not None and img_scaled.shape != img_dim:
-        img_scaled = np.array(cv2.resize(img_scaled, img_dim, interpolation=cv2.INTER_CUBIC))
+        img_scaled = reshape_image(img_scaled, img_dim)
 
     # Return image
     return img_scaled
