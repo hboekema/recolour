@@ -4,7 +4,7 @@ scipy
 numpy<1.17,>=1.14.5
 matplotlib
 opencv-python
-tensorflow==1.14.0
+tensorflow==1.15.4
 keras>=2.2.5
 scikit-learn
 scikit-image
