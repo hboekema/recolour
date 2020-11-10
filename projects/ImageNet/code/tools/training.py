@@ -86,9 +86,6 @@ def setup_train_model(ARCHITECTURE, PARAMS, LEARNING_RATE=0.001):
     # Setup optimizer
     optimizer = Adam(lr=LEARNING_RATE)
 
-    # Allow automatic mixed-precision training
-    optimizer = tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(optimizer)
-    
     # Define losses and weights
     loss, loss_weights = get_architecture_loss(ARCHITECTURE)
 
