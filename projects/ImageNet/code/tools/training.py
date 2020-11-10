@@ -131,9 +131,6 @@ def setup_GAN_submodel(ARCHITECTURE, PARAMS, LEARNING_RATE, submodel_name):
     # Setup optimizer - use RMSprop because momentum can mess with GAN convergence (see arXiv:1701.07875)
     optimizer = RMSprop(lr=LEARNING_RATE, momentum=0.0)
     
-    # Allow automatic mixed-precision training
-    optimizer = tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(optimizer)
-
     # Get loss
     if submodel_name == "generator":
         #loss_fn = generator_loss
