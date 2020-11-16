@@ -41,23 +41,26 @@ def WGAN_GP_UNet(img_dim=(256,256), dropout_rate=0., batchnorm=True):
     generator_E1D = AveragePooling2D((2,2))(generator_E1b)
 
     # Encoder block 2
-    generator_E2 = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_E1D)
+    generator_E2a = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_E1D)
+    generator_E2b = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_E2a)
     #generator_E2D = Conv2D(64, (4,4), strides=2, padding="same")(generator_E2)
-    generator_E2D = AveragePooling2D((2,2))(generator_E2)
+    generator_E2D = AveragePooling2D((2,2))(generator_E2b)
 
     # Bottleneck
     generator_BN = GeneratorBlock2D(128, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_E2D)
+    generator_BN = GeneratorBlock2D(128, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_BN)
 
     # Decoder
     # Decoder block 2
     #generator_D2U = Conv2DTranspose(128, (4,4), strides=2, padding="same")(generator_BN)
     generator_D2U = UpSampling2D((2,2))(generator_BN)
-    generator_D2 = Concatenate(axis=-1)([generator_D2U, generator_E2])
-    generator_D2 = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D2)
+    generator_D2 = Concatenate(axis=-1)([generator_D2U, generator_E2b])
+    generator_D2b = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D2)
+    generator_D2a = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D2b)
 
     # Decoder block 1
     #generator_D1U = Conv2DTranspose(64, (4,4), strides=2, padding="same")(generator_D2)
-    generator_D1U = UpSampling2D((2,2))(generator_D2)
+    generator_D1U = UpSampling2D((2,2))(generator_D2a)
     generator_D1 = Concatenate(axis=-1)([generator_D1U, generator_E1b])
     generator_D1b = GeneratorBlock2D(32, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D1)
     generator_D1a = GeneratorBlock2D(32, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D1b)

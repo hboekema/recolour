@@ -1,0 +1,75 @@
+
+
+GENERAL:
+    #GPU_ID: "-1"
+    GPU_ID: "0"
+    MODE: "GAN"
+
+
+DATA:
+    TRAIN_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/train/"
+    VAL_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/val/images/"
+    TEST_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/test/images/"
+
+
+MODEL:
+    #IMG_DIM: &IMG_DIM [256, 256]
+    #IMG_DIM: &IMG_DIM [128, 128]
+    IMG_DIM: &IMG_DIM [64, 64]
+
+
+GENERATOR:
+    ARCHITECTURE: "WGAN_GP_UNet"
+    GEN_LEARNING_RATE: 0.0001
+    RUNS_PER_EPOCH: 1
+    APPLY_L1_PENALTY: True
+    L1_WEIGHT: 1
+
+
+GEN_PARAMS:
+    img_dim: *IMG_DIM
+    dropout_rate: 0.5
+    batchnorm: True
+
+
+DISCRIMINATOR:
+    ARCHITECTURE: "PatchGAN_GP"
+    DISC_LEARNING_RATE: 0.0001
+    RUNS_PER_EPOCH: 2
+    APPLY_GP: True
+    GP_WEIGHT: 10
+    REPLAY_BUFFER_EPOCHS:  
+
+
+DISC_PARAMS:
+    img_dim: *IMG_DIM
+    dropout_rate: 0.2
+    relu_alpha: 0.2
+
+
+TRAIN:
+    EPOCHS: 10000
+    STEPS_PER_EPOCH: 50
+    #BATCH_SIZE: 32
+    #BATCH_SIZE: 16
+    #BATCH_SIZE: 8
+    #BATCH_SIZE: 4
+    BATCH_SIZE: 1
+    PREDICTION_PERIOD: 5
+    MODEL_SAVE_PERIOD: 50
+    SHUFFLE: True
+    #TRAIN_SAMPLES: 2
+    TRAIN_SAMPLES: 0
+
+
+VAL:
+    VALIDATION_SAMPLES: 16
+
+
+TEST:
+
+
+
+VIS:
+    VIS_SAMPLES: 5
+

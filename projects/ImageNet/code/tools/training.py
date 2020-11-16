@@ -126,14 +126,16 @@ def setup_GAN_submodel(ARCHITECTURE, PARAMS, LEARNING_RATE, submodel_name):
     # Retrieve architecture input and outputs
     model_inputs, model_outputs = get_architecture_inputs_outputs(ARCHITECTURE, PARAMS)
 
-    # Setup optimizer - use RMSprop because momentum can mess with GAN convergence (see arXiv:1701.07875)
-    optimizer = RMSprop(lr=LEARNING_RATE, momentum=0.0)
     
     # Get loss
     if submodel_name == "generator":
+        # Generator optimizer
+        optimizer = Adam(lr=LEARNING_RATE)
         #loss_fn = generator_loss
         loss_fn = wasserstein_generator_loss
     elif submodel_name == "discriminator":
+        # Discriminator optimizer - use RMSprop because momentum can mess with GAN convergence (see arXiv:1701.07875)
+        optimizer = RMSprop(lr=LEARNING_RATE, momentum=0.0)
         #loss_fn = discriminator_loss
         loss_fn = wasserstein_discriminator_loss
     else:
@@ -147,7 +149,7 @@ def setup_GAN_submodel(ARCHITECTURE, PARAMS, LEARNING_RATE, submodel_name):
 def setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS, DISC_PARAMS,
         GEN_LEARNING_RATE=0.001, DISC_LEARNING_RATE=0.001,
         GEN_RUNS_PER_EPOCH=1, DISC_RUNS_PER_EPOCH=5, APPLY_GP=False,
-        GP_WEIGHT=10, REPLAY_BUFFER_EPOCHS=None):
+        GP_WEIGHT=10, APPLY_L1_PENALTY=False, L1_WEIGHT=1, REPLAY_BUFFER_EPOCHS=None):
     # Create the generator and discriminator
     generator, gen_optimizer, gen_loss = setup_GAN_submodel(GEN_ARCHITECTURE, GEN_PARAMS, GEN_LEARNING_RATE, "generator")
     discriminator, disc_optimizer, disc_loss = setup_GAN_submodel(DISC_ARCHITECTURE, DISC_PARAMS, DISC_LEARNING_RATE, "discriminator")  
@@ -155,7 +157,7 @@ def setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS, DISC_PARAMS,
     # Create the GAN
     gan = GANModel(generator, discriminator, gen_loss, disc_loss,
             gen_optimizer, disc_optimizer, GEN_RUNS_PER_EPOCH,
-            DISC_RUNS_PER_EPOCH, APPLY_GP, GP_WEIGHT, REPLAY_BUFFER_EPOCHS)
+            DISC_RUNS_PER_EPOCH, APPLY_GP, GP_WEIGHT, APPLY_L1_PENALTY, L1_WEIGHT, REPLAY_BUFFER_EPOCHS)
     return gan
 
 
@@ -205,16 +207,19 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
     IMG_DIM = SETUP_PARAMS["MODEL"]["IMG_DIM"]
     if MODE == "GAN":
         GEN_ARCHITECTURE = SETUP_PARAMS["GENERATOR"]["ARCHITECTURE"]
-        GEN_PARAMS = SETUP_PARAMS["GEN_PARAMS"]
         GEN_LEARNING_RATE = SETUP_PARAMS["GENERATOR"]["GEN_LEARNING_RATE"]
         GEN_RUNS_PER_EPOCH = SETUP_PARAMS["GENERATOR"]["RUNS_PER_EPOCH"]
+        APPLY_L1_PENALTY = SETUP_PARAMS["GENERATOR"]["APPLY_L1_PENALTY"]
+        L1_WEIGHT = SETUP_PARAMS["GENERATOR"]["L1_WEIGHT"]
+        GEN_PARAMS = SETUP_PARAMS["GEN_PARAMS"]
+        
         DISC_ARCHITECTURE = SETUP_PARAMS["DISCRIMINATOR"]["ARCHITECTURE"]
-        DISC_PARAMS = SETUP_PARAMS["DISC_PARAMS"]
         DISC_LEARNING_RATE = SETUP_PARAMS["DISCRIMINATOR"]["DISC_LEARNING_RATE"]
         DISC_RUNS_PER_EPOCH = SETUP_PARAMS["DISCRIMINATOR"]["RUNS_PER_EPOCH"]
         APPLY_GP = SETUP_PARAMS["DISCRIMINATOR"]["APPLY_GP"]
         GP_WEIGHT = SETUP_PARAMS["DISCRIMINATOR"]["GP_WEIGHT"]
         REPLAY_BUFFER_EPOCHS = SETUP_PARAMS["DISCRIMINATOR"]["REPLAY_BUFFER_EPOCHS"]
+        DISC_PARAMS = SETUP_PARAMS["DISC_PARAMS"]
     else:
         ARCHITECTURE = SETUP_PARAMS["MODEL"]["ARCHITECTURE"]
         PARAMS = SETUP_PARAMS["PARAMS"]
@@ -266,7 +271,7 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
         model = setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS,
                 DISC_PARAMS, GEN_LEARNING_RATE, DISC_LEARNING_RATE,
                 GEN_RUNS_PER_EPOCH, DISC_RUNS_PER_EPOCH, APPLY_GP, GP_WEIGHT,
-                REPLAY_BUFFER_EPOCHS)
+                APPLY_L1_PENALTY, L1_WEIGHT, REPLAY_BUFFER_EPOCHS)
     else:
         # Create the model
         model = setup_train_model(ARCHITECTURE, PARAMS, LEARNING_RATE)

@@ -22,6 +22,8 @@ class GANModel:
             disc_runs_per_epoch,
             apply_gp=False,
             gp_weight=10,
+            apply_l1_penalty=False,
+            l1_weight=1,
             replay_buffer_epochs=None,
             ):
 
@@ -37,6 +39,9 @@ class GANModel:
 
         self.apply_gp = apply_gp
         self.gp_weight = gp_weight
+
+        self.apply_l1_penalty = apply_l1_penalty
+        self.l1_weight = l1_weight
 
         self.replay_buffer_epochs = replay_buffer_epochs
 
@@ -67,11 +72,11 @@ class GANModel:
         return gradient_penalty
 
     def _initialise_replay_buffer(self, max_episodes, episode_length):
-        self.replay_buffer = ReplayBuffer(batches_to_replay, episode_length)
+        self.replay_buffer = ReplayBuffer(max_episodes, episode_length)
 
     def _use_replay(self, new_entries): 
         # Use replay buffer to stabilise training
-        self.replay_buffer.update(generated_images)
+        self.replay_buffer.update(new_entries)
         return self.replay_buffer.draw()
 
     def _discriminator_train_step(self, data):
@@ -104,6 +109,10 @@ class GANModel:
             generated_images = self.generator(x, training=True)
             fake_output = self.discriminator(generated_images, training=False)
             gen_loss = self.generator_loss(fake_output)
+            
+            if self.apply_l1_penalty:
+                l1_penalty = tf.reduce_mean(tf.keras.losses.mean_absolute_error(y, generated_images))
+                gen_loss = gen_loss + self.l1_weight * l1_penalty
 
         # Get gradients and apply them
         gen_gradients = gen_tape.gradient(gen_loss, self.generator.trainable_variables)
