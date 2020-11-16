@@ -8,9 +8,13 @@ from architectures.generator.UNetFCNN import UNetFCNN
 from architectures.generator.SmallUNetFCNN import SmallUNetFCNN
 from architectures.generator.FCNN import FCNN
 from architectures.generator.WGAN_FCNN import WGAN_FCNN
+from architectures.generator.WGAN_UNet import WGAN_UNet
+from architectures.generator.WGAN_GP_UNet import WGAN_GP_UNet
 from architectures.generator.MLP import MLP
 
 from architectures.discriminator.SimpleDCNN import SimpleDCNN
+from architectures.discriminator.PatchGAN import PatchGAN
+from architectures.discriminator.PatchGAN_GP import PatchGAN_GP
 
 
 def get_architecture_inputs_outputs(ARCHITECTURE, PARAMS):
@@ -42,10 +46,18 @@ def get_architecture_inputs_outputs(ARCHITECTURE, PARAMS):
         return FCNN(**PARAMS)
     elif ARCHITECTURE == "WGAN_FCNN":
         return WGAN_FCNN(**PARAMS)
+    elif ARCHITECTURE == "WGAN_UNet":
+        return WGAN_UNet(**PARAMS)
+    elif ARCHITECTURE == "WGAN_GP_UNet":
+        return WGAN_GP_UNet(**PARAMS)
     elif ARCHITECTURE == "MLP":
         return MLP(**PARAMS)
     elif ARCHITECTURE == "SimpleDCNN":
         return SimpleDCNN(**PARAMS)
+    elif ARCHITECTURE == "PatchGAN":
+        return PatchGAN(**PARAMS)
+    elif ARCHITECTURE == "PatchGAN_GP":
+        return PatchGAN_GP(**PARAMS)
     else:
         raise ValueError("Architecture '{}' not implemented.".format(ARCHITECTURE))
 

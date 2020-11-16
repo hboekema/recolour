@@ -49,7 +49,7 @@ def setup_callbacks(EXP_DIR, DATA, PREDICTION_PERIOD, MODEL_SAVE_PERIOD, VAL_DAT
     logging_cb = LoggingCallback(EXP_DIR, DATA, period=PREDICTION_PERIOD, mode="train", show=False)
     model_save_cb = ModelCheckpoint(os.path.join(EXP_DIR, "models",  "model.{epoch:02d}-{loss:.4f}.hdf5"),
         monitor='loss', verbose=1, save_best_only=False, mode='auto',
-        period=MODEL_SAVE_PERIOD, save_weights_only=True)
+        save_freq=MODEL_SAVE_PERIOD, save_weights_only=True)
 
     # TODO: add model_save_cb back in when done debugging
     #callbacks = [logging_cb, model_save_cb]
@@ -102,6 +102,7 @@ def setup_train_model(ARCHITECTURE, PARAMS, LEARNING_RATE=0.001):
 
     return model
 
+
 def setup_GAN_submodel(ARCHITECTURE, PARAMS, LEARNING_RATE, submodel_name):
     """Retrieve architecture, setup optimizer, and get losses for the generator or discriminator Model
 
@@ -143,17 +144,19 @@ def setup_GAN_submodel(ARCHITECTURE, PARAMS, LEARNING_RATE, submodel_name):
     return model, optimizer, loss_fn
 
 
-
-def setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS, DISC_PARAMS, GEN_LEARNING_RATE=0.001, DISC_LEARNING_RATE=0.001, GEN_RUNS_PER_EPOCH=1, DISC_RUNS_PER_EPOCH=5):
+def setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS, DISC_PARAMS,
+        GEN_LEARNING_RATE=0.001, DISC_LEARNING_RATE=0.001,
+        GEN_RUNS_PER_EPOCH=1, DISC_RUNS_PER_EPOCH=5, APPLY_GP=False,
+        GP_WEIGHT=10, REPLAY_BUFFER_EPOCHS=None):
     # Create the generator and discriminator
     generator, gen_optimizer, gen_loss = setup_GAN_submodel(GEN_ARCHITECTURE, GEN_PARAMS, GEN_LEARNING_RATE, "generator")
     discriminator, disc_optimizer, disc_loss = setup_GAN_submodel(DISC_ARCHITECTURE, DISC_PARAMS, DISC_LEARNING_RATE, "discriminator")  
     
     # Create the GAN
-    gan = GANModel(generator, discriminator, gen_loss, disc_loss, gen_optimizer, disc_optimizer, GEN_RUNS_PER_EPOCH, DISC_RUNS_PER_EPOCH)
+    gan = GANModel(generator, discriminator, gen_loss, disc_loss,
+            gen_optimizer, disc_optimizer, GEN_RUNS_PER_EPOCH,
+            DISC_RUNS_PER_EPOCH, APPLY_GP, GP_WEIGHT, REPLAY_BUFFER_EPOCHS)
     return gan
-
-
 
 
 def train_model_with_data_generator(model, data_generator, PARAMS, validation_data=None, callbacks=None):
@@ -209,6 +212,9 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
         DISC_PARAMS = SETUP_PARAMS["DISC_PARAMS"]
         DISC_LEARNING_RATE = SETUP_PARAMS["DISCRIMINATOR"]["DISC_LEARNING_RATE"]
         DISC_RUNS_PER_EPOCH = SETUP_PARAMS["DISCRIMINATOR"]["RUNS_PER_EPOCH"]
+        APPLY_GP = SETUP_PARAMS["DISCRIMINATOR"]["APPLY_GP"]
+        GP_WEIGHT = SETUP_PARAMS["DISCRIMINATOR"]["GP_WEIGHT"]
+        REPLAY_BUFFER_EPOCHS = SETUP_PARAMS["DISCRIMINATOR"]["REPLAY_BUFFER_EPOCHS"]
     else:
         ARCHITECTURE = SETUP_PARAMS["MODEL"]["ARCHITECTURE"]
         PARAMS = SETUP_PARAMS["PARAMS"]
@@ -251,12 +257,16 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
     val_data_for_vis = val_data[:VIS_SAMPLES]
 
     # Set the callbacks up
-    callbacks = setup_callbacks(exp_dir, train_data_for_vis, PREDICTION_PERIOD, MODEL_SAVE_PERIOD, VAL_DATA=val_data_for_vis)
+    callbacks = setup_callbacks(exp_dir, train_data_for_vis, PREDICTION_PERIOD,
+            MODEL_SAVE_PERIOD*STEPS_PER_EPOCH, VAL_DATA=val_data_for_vis)
 
 
     if MODE == "GAN":
         # Create the model
-        model = setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS, DISC_PARAMS, GEN_LEARNING_RATE, DISC_LEARNING_RATE, GEN_RUNS_PER_EPOCH, DISC_RUNS_PER_EPOCH)
+        model = setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS,
+                DISC_PARAMS, GEN_LEARNING_RATE, DISC_LEARNING_RATE,
+                GEN_RUNS_PER_EPOCH, DISC_RUNS_PER_EPOCH, APPLY_GP, GP_WEIGHT,
+                REPLAY_BUFFER_EPOCHS)
     else:
         # Create the model
         model = setup_train_model(ARCHITECTURE, PARAMS, LEARNING_RATE)

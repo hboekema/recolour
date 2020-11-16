@@ -6,10 +6,25 @@ import tensorflow as tf
 import tqdm
 import collections
 
+from queue import Queue
+from tools.replay import ReplayBuffer
+
 
 class GANModel:
-    def __init__(self, generator, discriminator, generator_loss, discriminator_loss, gen_optimizer, disc_optimizer,
-            gen_runs_per_epoch, disc_runs_per_epoch):
+    def __init__(self,
+            generator,
+            discriminator,
+            generator_loss,
+            discriminator_loss,
+            gen_optimizer,
+            disc_optimizer,
+            gen_runs_per_epoch,
+            disc_runs_per_epoch,
+            apply_gp=False,
+            gp_weight=10,
+            replay_buffer_epochs=None,
+            ):
+
         self.generator = generator
         self.generator_loss = generator_loss
         self.gen_optimizer = gen_optimizer
@@ -20,22 +35,60 @@ class GANModel:
         self.disc_optimizer = disc_optimizer
         self.disc_runs_per_epoch = disc_runs_per_epoch
 
+        self.apply_gp = apply_gp
+        self.gp_weight = gp_weight
+
+        self.replay_buffer_epochs = replay_buffer_epochs
+
     def __call__(self, inputs):
-        return self.generator.predict(inputs)
+        """ Return tensor of generated images """
+        return self.generator(inputs)
 
     def predict(self, inputs):
-        """ Alternative to __call__ """
-        return self(inputs)
+        """ Alternative to __call__ that returns numpy array instead of tensor """
+        return self.generator.predict(inputs)
+
+    def _gradient_penalty(self, generated_images, real_images):
+        """ Apply gradient penalty to regularise the discriminator, making it
+        meet the Lipschitz condition (required for WGANs) """
+        batch_size = generated_images.shape[0]
+        alpha = tf.random.uniform(shape=[batch_size, 1, 1, 1], minval=0., maxval=1.)
+
+        interpolated_images = tf.constant(alpha * generated_images + (1 - alpha) * real_images)
+        
+        with tf.GradientTape() as gradient_tape:
+            gradient_tape.watch(interpolated_images)
+            interpolated_score = self.discriminator(interpolated_images, training=True)
+
+        interpolated_gradients = gradient_tape.gradient(interpolated_score, [interpolated_images])[0]
+        slopes = tf.math.sqrt(tf.math.reduce_sum(tf.math.square(interpolated_gradients), axis=[1, 2, 3]))
+        
+        gradient_penalty = tf.math.reduce_mean(tf.math.square(slopes - 1.))
+        return gradient_penalty
+
+    def _initialise_replay_buffer(self, max_episodes, episode_length):
+        self.replay_buffer = ReplayBuffer(batches_to_replay, episode_length)
+
+    def _use_replay(self, new_entries): 
+        # Use replay buffer to stabilise training
+        self.replay_buffer.update(generated_images)
+        return self.replay_buffer.draw()
 
     def _discriminator_train_step(self, data):
         x, y = data
 
         with tf.GradientTape() as disc_tape:
             # Generate images, score these and a set of real images, and calculate the discriminator loss
-            generated_images = self.generator(x, training=False)
+            generated_images = self.generator(x, training=True)
+            if self.replay_buffer_epochs is not None:
+                generated_images = self._use_replay(generated_images)
             real_output = self.discriminator(y, training=True)
             fake_output = self.discriminator(generated_images, training=True)
             disc_loss = self.discriminator_loss(real_output, fake_output)
+            
+            if self.apply_gp:
+                gp_loss = self._gradient_penalty(generated_images, y)
+                disc_loss = disc_loss + self.gp_weight * gp_loss
 
         # Get gradients and apply them
         disc_gradients = disc_tape.gradient(disc_loss, self.discriminator.trainable_variables)
@@ -88,6 +141,7 @@ class GANModel:
     def _run_callbacks(self, callbacks, epoch, logs, on):
         for callback in callbacks:
             callback.set_model(self.generator)
+            callback.set_critic(self.discriminator)
             if on == "epoch_end":
                 callback.on_epoch_end(epoch, logs)
             elif on == "epoch_begin":
@@ -146,6 +200,12 @@ class GANModel:
         self._set_train_mode(x)
         losses = collections.OrderedDict()
         loss_history = {}
+
+        if self.replay_buffer_epochs is not None:
+            # Initialise replay buffer
+            print("Training discriminator with replay")
+            batches_to_replay = steps_per_epoch * self.replay_buffer_epochs
+            self._initialise_replay_buffer(batches_to_replay, batch_size)
 
         # Start training loop
         for epoch in range(1, epochs+1):

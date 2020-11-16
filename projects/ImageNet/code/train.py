@@ -45,35 +45,33 @@ from tensorflow.keras.mixed_precision import experimental as mixed_precision
 print("Keras version: " + str(keras.__version__))
 print("TF version: " + str(tf.__version__))
 
-# Enable mixed-precision training
-policy = mixed_precision.Policy('mixed_float16')
-mixed_precision.set_policy(policy)
-print("Policy name: %s" % policy.name)
-print("Compute dtype %s" % policy.compute_dtype)
-print("Variable dtype: %s" % policy.variable_dtype)
-
-
-# Enable memory growth when training on GPU
-gpus = tf.config.experimental.list_physical_devices('GPU')
-print(gpus)
-if gpus:
-    try:
-        # Currently, memory growth needs to be the same across GPUs
-        for gpu in gpus:
-            tf.config.experimental.set_memory_growth(gpu, True)
-        logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-        print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-    except RuntimeError as e:
-        # Memory growth must be set before GPUs have been initialized
-        print(e)
-
 
 if __name__ == "__main__":
     # Select GPU/CPU training
     os.environ["CUDA_VISIBLE_DEVICES"] = setup_params["GENERAL"]["GPU_ID"]
     if setup_params["GENERAL"]["GPU_ID"] != "-1":
         print("GPU used. GPU ID(s): %s" % os.environ["CUDA_VISIBLE_DEVICES"]) 
+        
+        # Enable memory growth when training on GPU
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+            try:
+                # Currently, memory growth needs to be the same across GPUs
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+            except RuntimeError as e:
+                # Memory growth must be set before GPUs have been initialized
+                print(e)
         print("Memory growth allowed: True")
+
+        # Enable mixed-precision training
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_policy(policy)
+        print("Policy name: %s" % policy.name)
+        print("Compute dtype %s" % policy.compute_dtype)
+        print("Variable dtype: %s" % policy.variable_dtype)    
     else:
         print("CPU used")
 

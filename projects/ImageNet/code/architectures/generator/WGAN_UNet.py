@@ -1,6 +1,7 @@
 
 """ WGAN-applicable Fully Convolutional Neural Network """
 
+import tensorflow as tf
 
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, LeakyReLU, BatchNormalization
 from tensorflow.keras.constraints import MinMaxNorm
@@ -9,7 +10,7 @@ from architectures.activations import UV_activation
 from architectures.layers import SymmetricPadding
 
 
-def WGAN_FCNN(img_dim=(256,256), weight_clip_norm=0.01):
+def WGAN_UNet(img_dim=(256,256), weight_clip_norm=0.01):
     """WGAN FCNN architecture for generating UV colour components given the Y (luminance) component
 
     Network input: grayscale image of specified dimensions
@@ -62,13 +63,7 @@ def WGAN_FCNN(img_dim=(256,256), weight_clip_norm=0.01):
     
     generator_E2D = MaxPooling2D((2,2))(generator_E2)
 
-    # Encoder block 3
-    #generator_E3 = Conv2D(128, (3,3), activation="relu")(generator_E2D)
-    #generator_E3 = SymmetricPadding(padding=(1,1))(generator_E3)
-    #generator_E3D = MaxPooling2D((2,2))(generator_E3)
-
     # Bottleneck
-    #generator_BN = Conv2D(256, (3,3), activation="relu")(generator_E3D)
     generator_BN = Conv2D(256, (3,3), kernel_constraint=min_max_norm)(generator_E2D)
     generator_BN = LeakyReLU()(generator_BN)
     generator_BN = BatchNormalization()(generator_BN)
@@ -76,15 +71,10 @@ def WGAN_FCNN(img_dim=(256,256), weight_clip_norm=0.01):
     generator_BN = SymmetricPadding(padding=(1,1))(generator_BN)
 
     # Decoder
-    # Decoder block 3
-    #generator_D3 = UpSampling2D((2,2))(generator_BN)
-    #generator_D3 = Conv2D(128, (3,3), activation="relu")(generator_D3)
-    #generator_D3 = SymmetricPadding(padding=(1,1))(generator_D3)
-
     # Decoder block 2
-    #generator_D2 = UpSampling2D((2,2))(generator_D3)
-    generator_D2 = UpSampling2D((2,2))(generator_BN)
-    
+    generator_D2U = UpSampling2D((2,2))(generator_BN)
+
+    generator_D2 = Concatenate(axis=-1)([generator_D2U, generator_E2])
     generator_D2 = Conv2D(64, (3,3), kernel_constraint=min_max_norm)(generator_D2)
     generator_D2 = LeakyReLU()(generator_D2)
     generator_D2 = BatchNormalization()(generator_D2)
@@ -92,8 +82,9 @@ def WGAN_FCNN(img_dim=(256,256), weight_clip_norm=0.01):
     generator_D2 = SymmetricPadding(padding=(1,1))(generator_D2)
 
     # Decoder block 1
-    generator_D1 = UpSampling2D((2,2))(generator_D2)
+    generator_D1U = UpSampling2D((2,2))(generator_D2)
     
+    generator_D1 = Concatenate(axis=-1)([generator_D1U, generator_E1])
     generator_D1 = Conv2D(32, (3,3), kernel_constraint=min_max_norm)(generator_D1)
     generator_D1 = LeakyReLU()(generator_D1)
     generator_D1 = BatchNormalization()(generator_D1)
@@ -108,7 +99,7 @@ def WGAN_FCNN(img_dim=(256,256), weight_clip_norm=0.01):
 
     # Output layer - output channels are U and V components, so need to append to Y channel (input image)
     generator_output = Conv2D(2, (1,1), activation=UV_activation, padding="same", kernel_constraint=min_max_norm, name="generator_output_UV")(generator_D1)
-    generator_output = Concatenate(axis=-1, name="generator_output_YUV")([generator_input, generator_output])
+    generator_output = Concatenate(axis=-1, dtype=tf.dtypes.float32, name="generator_output_YUV")([generator_input, generator_output])
 
     return generator_input, generator_output
 

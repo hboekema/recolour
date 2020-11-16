@@ -8,7 +8,9 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.callbacks import Callback
-from tools.images import postprocess_img
+
+from tools.images import postprocess_img, write_to_img
+from tools.metrics import sigmoid_np
 
 
 class LoggingCallback(Callback):
@@ -25,6 +27,9 @@ class LoggingCallback(Callback):
         self.show = show
         self.mode = mode
         self.display_dim = display_dim
+
+        self.model = None
+        self.critic = None
 
         self._format_data(data)
         self._create_vis()
@@ -51,13 +56,28 @@ class LoggingCallback(Callback):
     def set_model(self, model):
         self.model = model
 
+    def set_critic(self, critic):
+        self.critic = critic
+
     def predict(self):
         """ Obtain (and optionally visualise) the network's predictions on the callback data """
+        assert self.model is not None
+
         preds = self.model.predict(self.data['x'])
         if self.show:
             plt.imshow(preds)
 
         return preds
+
+    def _score_preds(self, preds):
+        """ Score the given predictions using a pre-selected critic model """
+        assert self.critic is not None
+
+        pred_scores = self.critic.predict(preds)
+        # TODO: generalise this code neatly - should be an option to specify logits vs probits
+        #pred_scores = sigmoid_np(pred_scores) 
+
+        return pred_scores
 
     def _add_UV_channels_to_image(self, image_index):
         # Expand the Y input channels to include the U and V components (both at 0.0)
@@ -68,18 +88,18 @@ class LoggingCallback(Callback):
         return input_y, input_yuv
 
     def _compute_RMS_error_image(self, preds, image_index):
-            # Calculate the RMSE difference image over the U and V channels
-            pred = preds[image_index]
-            assert(np.all(np.abs(pred[:, :, 1:]) <= 0.5))
+        # Calculate the RMSE difference image over the U and V channels
+        pred = preds[image_index]
+        assert(np.all(np.abs(pred[:, :, 1:]) <= 0.5))
             
-            gt = self.data['y'][image_index]
-            rmse_channel = 2*np.sqrt(np.mean(np.square(gt[:, :, 1:] - pred[:, :, 1:]), axis=-1))
-            rmse_img = np.zeros(shape=(*gt.shape[:2], 3), dtype=float)
-            rmse_img[:, :, 0] = np.clip(rmse_channel, 0.0, 1.0)
+        gt = self.data['y'][image_index]
+        rmse_channel = 2*np.sqrt(np.mean(np.square(gt[:, :, 1:] - pred[:, :, 1:]), axis=-1))
+        rmse_img = np.zeros(shape=(*gt.shape[:2], 3), dtype=float)
+        rmse_img[:, :, 0] = np.clip(rmse_channel, 0.0, 1.0)
 
-            return rmse_img, pred, gt
+        return rmse_img, pred, gt
 
-    def _store_preds(self, preds, epoch):
+    def _store_preds(self, preds, epoch, scores={}):
         """ Save the input, prediction, and GT images """
         images_to_write = []
         for image_index in range(len(preds)):
@@ -95,6 +115,16 @@ class LoggingCallback(Callback):
             gt_reshaped = postprocess_img(gt, img_dim=self.display_dim, convert_to_rgb=True) 
             rmse_img_reshaped = postprocess_img(rmse_img, img_dim=self.display_dim, convert_to_rgb=True) 
             
+            # Label the output and GT images with their score, if provided
+            if scores:
+                pred_score = scores["pred_scores"][image_index]
+                pred_score_text = "Score: {:.03f}".format(*pred_score)
+                pred_rgb = write_to_img(pred_rgb, pred_score_text)
+                
+                gt_score = scores["gt_scores"][image_index]
+                gt_score_text = "Score: {:.03f}".format(*gt_score)
+                gt_reshaped = write_to_img(gt_reshaped, gt_score_text)
+
             # Concatenate into a 'comparison' image
             images_to_store = [input_rgb, pred_rgb, gt_reshaped, rmse_img_reshaped]
             comparison_img = np.concatenate(images_to_store, axis=1)
@@ -109,8 +139,14 @@ class LoggingCallback(Callback):
         # Predict on callback data
         preds = self.predict()
 
+        # Critique (score) predictions and GT data if critic model was set
+        scores = {}
+        if self.critic is not None:
+            scores["pred_scores"] = self._score_preds(preds)
+            scores["gt_scores"] = self._score_preds(self.data['y'])            
+
         # Store the predictions
-        self._store_preds(preds, epoch)
+        self._store_preds(preds, epoch, scores)
 
     def _write_logs_to_file(self, epoch, logs):
         # Store losses in log file

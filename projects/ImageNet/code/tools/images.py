@@ -8,6 +8,24 @@ from sklearn import preprocessing
 from skimage import color
 
 
+def write_to_img(img, text):
+    # Text parameters
+    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    bottomLeftCornerOfText = (10,240)
+    fontScale              = 0.5
+    fontColor              = (255,255,255)
+    lineType               = 2
+    
+    # Write text to img
+    img = cv2.putText(img, text, 
+        bottomLeftCornerOfText, 
+        font, 
+        fontScale,
+        fontColor,
+        lineType)
+
+    return img
+
 
 def reshape_image(img, img_dim):
     return np.array(cv2.resize(img, img_dim, interpolation=cv2.INTER_CUBIC))
