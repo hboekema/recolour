@@ -22,22 +22,21 @@ GENERATOR:
     ARCHITECTURE: "WGAN_GP_UNet"
     GEN_LEARNING_RATE: 0.0001
     RUNS_PER_EPOCH: 1
-    APPLY_L1_PENALTY: True
-    L1_WEIGHT: 1
+    APPLY_L1_PENALTY: False
+    L1_WEIGHT: 10
 
 
 GEN_PARAMS:
     img_dim: *IMG_DIM
     dropout_rate: 0.5
-    batchnorm: True
-
+    relu_alpha: 0.2
 
 DISCRIMINATOR:
     ARCHITECTURE: "PatchGAN_GP"
     DISC_LEARNING_RATE: 0.0001
     RUNS_PER_EPOCH: 2
     APPLY_GP: True
-    GP_WEIGHT: 10
+    GP_WEIGHT: 0 
     REPLAY_BUFFER_EPOCHS:  
 
 
@@ -72,4 +71,5 @@ TEST:
 
 VIS:
     VIS_SAMPLES: 5
+    DISPLAY_DIM: [256, 256]
 

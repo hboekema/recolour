@@ -42,11 +42,11 @@ def setup_data_generator(DATA_PATH, BATCH_SIZE, IMG_DIM, SHUFFLE):
     return data_gen
 
 
-def setup_callbacks(EXP_DIR, DATA, PREDICTION_PERIOD, MODEL_SAVE_PERIOD, VAL_DATA=None):
+def setup_callbacks(EXP_DIR, DATA, PREDICTION_PERIOD, MODEL_SAVE_PERIOD, VAL_DATA=None, DISPLAY_DIM=(256, 256)):
     """Setup training callbacks for managing and inspecting the network's internal state during training
 
     """
-    logging_cb = LoggingCallback(EXP_DIR, DATA, period=PREDICTION_PERIOD, mode="train", show=False)
+    logging_cb = LoggingCallback(EXP_DIR, DATA, period=PREDICTION_PERIOD, mode="train", show=False, display_dim=DISPLAY_DIM)
     model_save_cb = ModelCheckpoint(os.path.join(EXP_DIR, "models",  "model.{epoch:02d}-{loss:.4f}.hdf5"),
         monitor='loss', verbose=1, save_best_only=False, mode='auto',
         save_freq=MODEL_SAVE_PERIOD, save_weights_only=True)
@@ -56,7 +56,7 @@ def setup_callbacks(EXP_DIR, DATA, PREDICTION_PERIOD, MODEL_SAVE_PERIOD, VAL_DAT
     callbacks = [logging_cb]
 
     if VAL_DATA is not None:
-        val_logging_cb = LoggingCallback(EXP_DIR, VAL_DATA, period=PREDICTION_PERIOD, mode="val", show=False)
+        val_logging_cb = LoggingCallback(EXP_DIR, VAL_DATA, period=PREDICTION_PERIOD, mode="val", show=False, display_dim=DISPLAY_DIM)
         callbacks.append(val_logging_cb)
 
     return callbacks
@@ -130,12 +130,13 @@ def setup_GAN_submodel(ARCHITECTURE, PARAMS, LEARNING_RATE, submodel_name):
     # Get loss
     if submodel_name == "generator":
         # Generator optimizer
-        optimizer = Adam(lr=LEARNING_RATE)
+        optimizer = RMSprop(lr=LEARNING_RATE, momentum=0.0, clipnorm=1.)
+        #optimizer = Adam(lr=LEARNING_RATE, beta_1=0.5)
         #loss_fn = generator_loss
         loss_fn = wasserstein_generator_loss
     elif submodel_name == "discriminator":
         # Discriminator optimizer - use RMSprop because momentum can mess with GAN convergence (see arXiv:1701.07875)
-        optimizer = RMSprop(lr=LEARNING_RATE, momentum=0.0)
+        optimizer = RMSprop(lr=LEARNING_RATE, momentum=0.0, clipnorm=1.)
         #loss_fn = discriminator_loss
         loss_fn = wasserstein_discriminator_loss
     else:
@@ -238,6 +239,7 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
 
     # Visualisation parameters
     VIS_SAMPLES = SETUP_PARAMS["VIS"]["VIS_SAMPLES"]
+    DISPLAY_DIM = tuple(SETUP_PARAMS["VIS"]["DISPLAY_DIM"])
 
     # Set the experiment directory up
     exp_dir, _, _, _, _ = setup_exp_directory(run_id=RUN_ID)
@@ -263,7 +265,7 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
 
     # Set the callbacks up
     callbacks = setup_callbacks(exp_dir, train_data_for_vis, PREDICTION_PERIOD,
-            MODEL_SAVE_PERIOD*STEPS_PER_EPOCH, VAL_DATA=val_data_for_vis)
+            MODEL_SAVE_PERIOD*STEPS_PER_EPOCH, VAL_DATA=val_data_for_vis, DISPLAY_DIM=DISPLAY_DIM)
 
 
     if MODE == "GAN":

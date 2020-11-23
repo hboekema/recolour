@@ -3,14 +3,13 @@
 
 import tensorflow as tf
 
-from tensorflow.keras.layers import Input, Conv2D, Conv2DTranspose, AveragePooling2D, UpSampling2D, Concatenate, Dropout, LeakyReLU, BatchNormalization
+from tensorflow.keras.layers import Input, Conv2D, Conv2DTranspose, Concatenate, LeakyReLU, UpSampling2D, AveragePooling2D
 
 from architectures.activations import UV_activation
-from architectures.layers import SymmetricPadding
-from architectures.blocks import GeneratorBlock2D
+from architectures.blocks import UNetEncoderBlock, UNetDecoderBlock
 
 
-def WGAN_GP_UNet(img_dim=(256,256), dropout_rate=0., batchnorm=True):
+def WGAN_GP_UNet(img_dim=(256,256), dropout_rate=0.5, relu_alpha=0.2):
     """WGAN FCNN architecture for generating UV colour components given the Y (luminance) component
 
     Network input: grayscale image of specified dimensions
@@ -34,39 +33,25 @@ def WGAN_GP_UNet(img_dim=(256,256), dropout_rate=0., batchnorm=True):
 
     # Network architecture
     # Encoder
-    # Encoder block 1
-    generator_E1a = GeneratorBlock2D(32, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_input)
-    generator_E1b = GeneratorBlock2D(32, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_E1a)
-    #generator_E1D = Conv2D(32, (4,4), strides=2, padding="same")(generator_E1b)
-    generator_E1D = AveragePooling2D((2,2))(generator_E1b)
-
-    # Encoder block 2
-    generator_E2a = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_E1D)
-    generator_E2b = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_E2a)
-    #generator_E2D = Conv2D(64, (4,4), strides=2, padding="same")(generator_E2)
-    generator_E2D = AveragePooling2D((2,2))(generator_E2b)
-
-    # Bottleneck
-    generator_BN = GeneratorBlock2D(128, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_E2D)
-    generator_BN = GeneratorBlock2D(128, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_BN)
+    generator_E1 = UNetEncoderBlock(64, (3,3), strides=2, padding="same", activation="leaky_relu")(generator_input)
+    #generator_E2 = UNetEncoderBlock(128, (3,3), strides=2, padding="same", activation="leaky_relu")(generator_E1)
+    #generator_E3 = UNetEncoderBlock(256, (3,3), strides=2, padding="same", activation="leaky_relu")(generator_E2)
+    #generator_E4 = UNetEncoderBlock(512, (3,3), strides=2, padding="same", activation="leaky_relu")(generator_E3)
+    
+    # Bottleneck layer
+    generator_BN = Conv2D(512, (3,3), strides=1, padding="same")(generator_E1)
+    #generator_BN = AveragePooling2D(pool_size=(2,2))(generator_BN)
+    generator_BN = LeakyReLU(relu_alpha)(generator_BN)
 
     # Decoder
-    # Decoder block 2
-    #generator_D2U = Conv2DTranspose(128, (4,4), strides=2, padding="same")(generator_BN)
-    generator_D2U = UpSampling2D((2,2))(generator_BN)
-    generator_D2 = Concatenate(axis=-1)([generator_D2U, generator_E2b])
-    generator_D2b = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D2)
-    generator_D2a = GeneratorBlock2D(64, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D2b)
+    #generator_D4 = UNetDecoderBlock(512, (3,3), strides=2, padding="same", activation="relu", dropout_rate=dropout_rate)(generator_BN, generator_E4)
+    #generator_D3 = UNetDecoderBlock(512, (3,3), strides=2, padding="same", activation="leaky_relu", dropout_rate=dropout_rate)(generator_BN, generator_E3)
+    #generator_D2 = UNetDecoderBlock(512, (3,3), strides=2, padding="same", activation="leaky_relu", dropout_rate=0.)(generator_D3, generator_E2)
+    generator_D1 = UNetDecoderBlock(64, (3,3), strides=2, padding="same", activation="leaky_relu", dropout_rate=0.)(generator_BN, generator_E1)
 
-    # Decoder block 1
-    #generator_D1U = Conv2DTranspose(64, (4,4), strides=2, padding="same")(generator_D2)
-    generator_D1U = UpSampling2D((2,2))(generator_D2a)
-    generator_D1 = Concatenate(axis=-1)([generator_D1U, generator_E1b])
-    generator_D1b = GeneratorBlock2D(32, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D1)
-    generator_D1a = GeneratorBlock2D(32, (3,3), padding="symmetric", dropout_rate=dropout_rate, batchnorm=batchnorm)(generator_D1b)
-    
     # Output layer - output channels are U and V components, so need to append to Y channel (input image)
-    generator_output = Conv2D(2, (1,1), activation=UV_activation, padding="same", name="generator_output_UV")(generator_D1a)
+    #generator_output = Conv2DTranspose(2, (3,3), strides=2, activation=UV_activation, padding="same", name="generator_output_UV")(generator_D1) 
+    generator_output = Conv2D(2, (1,1), padding="same", activation=UV_activation)(generator_D1)
     generator_output = Concatenate(axis=-1, dtype=tf.dtypes.float32, name="generator_output_YUV")([generator_input, generator_output])
 
     return generator_input, generator_output

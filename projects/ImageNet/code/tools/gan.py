@@ -159,6 +159,9 @@ class GANModel:
 
     def _perform_training_epoch(self, x, y, epoch, batch_size, steps_per_epoch):
         """ Perform single training epoch (consisting of discriminator training and generator training runs) """
+        disc_loss_history = []
+        gen_loss_history = []
+
         print("\nTraining discriminator...")
         for disc_run_number in range(self.disc_runs_per_epoch):
             print("Run {}/{}".format(disc_run_number + 1, self.disc_runs_per_epoch))
@@ -170,6 +173,7 @@ class GANModel:
                     # Train discriminator
                     disc_loss = self._discriminator_train_step(data)
                     disc_loss = disc_loss.numpy()
+                    disc_loss_history.append(disc_loss)
 
                     # Update progress bar
                     disc_pbar.set_postfix({"disc_loss": np.round(float(disc_loss), decimals=3)}, refresh=True)
@@ -192,6 +196,7 @@ class GANModel:
                     # Train generator
                     gen_loss = self._generator_train_step(data)
                     gen_loss = gen_loss.numpy()
+                    gen_loss_history.append(gen_loss)
 
                     # Update progress bar
                     gen_pbar.set_postfix({"gen_loss": np.round(float(gen_loss), decimals=3)}, refresh=True)
@@ -202,7 +207,7 @@ class GANModel:
             # Shuffle data in generator
             x, y = self._shuffle_data(x, y)
 
-        return gen_loss, disc_loss
+        return gen_loss_history, disc_loss_history
 
     def train(self, x=None, y=None, batch_size=None, epochs=1, callbacks=None, validation_data=None, steps_per_epoch=None):
         """ Custom training loop for adversarial training """
@@ -223,7 +228,9 @@ class GANModel:
             self._run_callbacks(callbacks, epoch, losses, "epoch_begin")
             
             # Train the networks
-            gen_loss, disc_loss = self._perform_training_epoch(x, y, epoch, batch_size, steps_per_epoch)
+            gen_loss_history, disc_loss_history = self._perform_training_epoch(x, y, epoch, batch_size, steps_per_epoch)
+            gen_loss = np.mean(gen_loss_history)
+            disc_loss = np.mean(disc_loss_history)
 
             # Store most recent losses 
             losses["gen_loss"] = "{:.03f}".format(gen_loss)
