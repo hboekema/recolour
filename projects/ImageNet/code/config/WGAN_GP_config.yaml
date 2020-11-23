@@ -7,9 +7,9 @@ GENERAL:
 
 
 DATA:
-    TRAIN_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/train/"
-    VAL_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/val/images/"
-    TEST_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/test/images/"
+    TRAIN_DATA_PATH: "/home/gbmc/recolour/data/tiny-imagenet-200/val/images/"
+    VAL_DATA_PATH: "/home/gbmc/recolour/data/tiny-imagenet-200/val/images/"
+    TEST_DATA_PATH: "/home/gbmc/Projects/recolour/data/tiny-imagenet-200/test/images/"
 
 
 MODEL:
