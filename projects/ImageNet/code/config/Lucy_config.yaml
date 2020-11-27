@@ -1,0 +1,39 @@
+
+
+GENERAL:
+    GPU_ID: "-1"
+
+
+DATA:
+    TRAIN_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/train/"
+    VAL_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/val/images/"
+    TEST_DATA_PATH: "/home/hboekema/Projects/recolour/data/tiny-imagenet-200/test/images/"
+
+
+MODEL:
+    ARCHITECTURE: "LucyMLP"
+    
+    IMG_DIM: [64, 64]
+
+
+TRAIN:
+    EPOCHS: 10000
+    STEPS_PER_EPOCH: 10
+    BATCH_SIZE: 16
+    LEARNING_RATE: 0.001
+    PREDICTION_PERIOD: 5
+    MODEL_SAVE_PERIOD: 50
+    SHUFFLE: True
+    TRAIN_SAMPLES: 0
+
+
+VAL:
+    VALIDATION_SAMPLES: 16
+
+TEST:
+
+
+
+VIS:
+    VIS_SAMPLES: 3 
+
