@@ -126,7 +126,7 @@ def setup_GAN_submodel(ARCHITECTURE, PARAMS, LEARNING_RATE, submodel_name):
     # Retrieve architecture input and outputs
     model_inputs, model_outputs = get_architecture_inputs_outputs(ARCHITECTURE, PARAMS)
 
-    
+
     # Get loss
     if submodel_name == "generator":
         # Generator optimizer
@@ -152,8 +152,8 @@ def setup_GAN(GEN_ARCHITECTURE, DISC_ARCHITECTURE, GEN_PARAMS, DISC_PARAMS,
         GP_WEIGHT=10, APPLY_L1_PENALTY=False, L1_WEIGHT=1, REPLAY_BUFFER_EPOCHS=None):
     # Create the generator and discriminator
     generator, gen_optimizer, gen_loss = setup_GAN_submodel(GEN_ARCHITECTURE, GEN_PARAMS, GEN_LEARNING_RATE, "generator")
-    discriminator, disc_optimizer, disc_loss = setup_GAN_submodel(DISC_ARCHITECTURE, DISC_PARAMS, DISC_LEARNING_RATE, "discriminator")  
-    
+    discriminator, disc_optimizer, disc_loss = setup_GAN_submodel(DISC_ARCHITECTURE, DISC_PARAMS, DISC_LEARNING_RATE, "discriminator")
+
     # Create the GAN
     gan = GANModel(generator, discriminator, gen_loss, disc_loss,
             gen_optimizer, disc_optimizer, GEN_RUNS_PER_EPOCH,
@@ -199,6 +199,13 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
     MODE = SETUP_PARAMS["GENERAL"]["MODE"]
     print("Training mode: {}".format(MODE))
 
+    # Experiment setup parameters
+    WRITE_DIR = SETUP_PARAMS["SETUP"]["WRITE_DIR"]
+    if WRITE_DIR is None:
+        print("Write directory: default")
+    else:
+        print("Write directory: {}".format(WRITE_DIR))
+
     # Data parameters
     TRAIN_DATA_PATH = SETUP_PARAMS["DATA"]["TRAIN_DATA_PATH"]
     VAL_DATA_PATH = SETUP_PARAMS["DATA"]["VAL_DATA_PATH"]
@@ -212,7 +219,7 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
         APPLY_L1_PENALTY = SETUP_PARAMS["GENERATOR"]["APPLY_L1_PENALTY"]
         L1_WEIGHT = SETUP_PARAMS["GENERATOR"]["L1_WEIGHT"]
         GEN_PARAMS = SETUP_PARAMS["GEN_PARAMS"]
-        
+
         DISC_ARCHITECTURE = SETUP_PARAMS["DISCRIMINATOR"]["ARCHITECTURE"]
         DISC_LEARNING_RATE = SETUP_PARAMS["DISCRIMINATOR"]["DISC_LEARNING_RATE"]
         DISC_RUNS_PER_EPOCH = SETUP_PARAMS["DISCRIMINATOR"]["RUNS_PER_EPOCH"]
@@ -224,7 +231,7 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
         ARCHITECTURE = SETUP_PARAMS["MODEL"]["ARCHITECTURE"]
         PARAMS = SETUP_PARAMS["PARAMS"]
         LEARNING_RATE = SETUP_PARAMS["TRAIN"]["LEARNING_RATE"]
-    
+
     BATCH_SIZE = SETUP_PARAMS["TRAIN"]["BATCH_SIZE"]
     EPOCHS = SETUP_PARAMS["TRAIN"]["EPOCHS"]
     STEPS_PER_EPOCH = SETUP_PARAMS["TRAIN"]["STEPS_PER_EPOCH"]
@@ -240,7 +247,7 @@ def training_procedure(SETUP_PARAMS, RUN_ID):
     VIS_SAMPLES = SETUP_PARAMS["VIS"]["VIS_SAMPLES"]
 
     # Set the experiment directory up
-    exp_dir, _, _, _, _ = setup_exp_directory(run_id=RUN_ID)
+    exp_dir, _, _, _, _ = setup_exp_directory(run_id=RUN_ID, write_dir=WRITE_DIR)
 
     # Set the data generator up
     TRAIN_IMAGE_PATHS = gather_images_in_dir(TRAIN_DATA_PATH)

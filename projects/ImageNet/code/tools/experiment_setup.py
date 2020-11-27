@@ -17,15 +17,15 @@ def create_train_test_subdir(main_dir, include_val=False):
         os.mkdir(val_dir)
 
 
-def setup_exp_directory(run_id=None, root_dir=None):
+def setup_exp_directory(run_id=None, write_dir=None):
     """ Create experiment directory and all key subdirectories """
-    if root_dir is None:
+    if write_dir is None:
         # Get absolute path of the working directory that Python is currently running in
-        root_dir = os.getcwd()
-        root_dir = root_dir.replace("code", "experiments")
+        write_dir = os.getcwd()
+        write_dir = write_dir.replace("code", "experiments")
 
     # Create experiment directory
-    exp_dir = os.path.join(root_dir, run_id, "")
+    exp_dir = os.path.join(write_dir, run_id, "")
     os.mkdir(exp_dir)
     print("Experiment directory: \n" + exp_dir)
 
